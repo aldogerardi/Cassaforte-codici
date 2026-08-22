@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>Cassaforte Credenziali</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#FFFFFF; --panel:#F2F8FD; --panel2:#E4EFF9; --line:#3E7BE0;
+    --text:#16202B; --muted:#5C6B7A; --muted2:#8CA0B3;
+    --led-arm:#3DDC84; --led-amber:#FFB020; --led-danger:#FF5D5D;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    overscroll-behavior:none; user-select:none;
+    display:flex; justify-content:center;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(62,123,224,.08), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(62,123,224,.05) 0, rgba(62,123,224,.05) 1px, transparent 1px, transparent 26px),
+      repeating-linear-gradient(90deg, rgba(62,123,224,.05) 0, rgba(62,123,224,.05) 1px, transparent 1px, transparent 26px);
+    background-attachment:fixed;
+  }
+  #app{width:100%; max-width:480px; min-height:100vh; display:flex; flex-direction:column; position:relative;}
+  .label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; color:var(--muted2); text-transform:uppercase;}
+  button{font-family:inherit; border:none; cursor:pointer; background:none; color:inherit;}
+  input{font-family:inherit; color:inherit;}
+
+  /* ---------- Schermata Lock/Setup ---------- */
+  #screen-lock{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  .lock-card{width:100%; max-width:300px; background:var(--panel); border:1px solid var(--line); border-radius:20px;
+             padding:24px 22px; display:flex; flex-direction:column; align-items:center; gap:18px; box-shadow:0 12px 34px rgba(0,0,0,.35);}
+  .led{display:none;}
+  .led.amber{background:var(--led-amber); box-shadow:0 0 14px 2px rgba(255,176,32,.55);}
+  .led.arm{background:var(--led-arm); box-shadow:0 0 16px 3px rgba(61,220,132,.6);}
+  .led.danger{background:var(--led-danger); box-shadow:0 0 16px 3px rgba(255,93,93,.6);}
+  .lock-head{display:flex; flex-direction:column; align-items:center; gap:8px;}
+  .lock-title{display:none;}
+  .lock-sub{font-size:12px; color:var(--muted); text-align:center;}
+  .dots{display:flex; gap:10px; height:14px; align-items:center;}
+  .dot{width:10px; height:10px; border-radius:50%; border:2px solid var(--line); transition:.15s;}
+  .dot.filled{background:var(--text); border-color:var(--text);}
+  .dots.shake{animation:shake .35s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+  .keypad{display:grid; grid-template-columns:repeat(5,44px); gap:8px;}
+  .key{width:44px; height:44px; border-radius:12px; background:var(--bg); border:1px solid var(--line);
+       font-family:'JetBrains Mono',monospace; font-size:17px; font-weight:600; display:flex; align-items:center; justify-content:center;}
+  .key:active{background:var(--panel2);}
+  .keyrow-actions{display:flex; gap:8px; width:100%;}
+  .key-action{flex:1; height:44px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .key-action.clear{background:var(--bg); border:1px solid var(--line); color:var(--muted);}
+  .key-action.login{background:var(--led-arm); color:#0B1410;}
+  .key-action.login:active{opacity:.85;}
+  .biolink{font-size:12px; color:var(--led-arm); display:flex; align-items:center; gap:6px;}
+  .setup-note{font-size:11px; color:var(--muted2); text-align:center; max-width:260px;}
+
+  /* ---------- Schermata Vault ---------- */
+  #screen-vault{flex:1; display:none; flex-direction:column;}
+  .topbar{display:flex; align-items:center; gap:12px; padding:14px 18px 8px;}
+  .topbar h1{font-size:17px; margin:0; font-weight:600; flex:1;}
+  .iconbtn{width:38px; height:38px; border-radius:10px; background:var(--panel); border:1px solid var(--line); display:flex; align-items:center; justify-content:center;}
+  .search{margin:0; flex:1; display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px;}
+  .search-row{display:flex; align-items:center; gap:8px; margin:4px 18px 10px;}
+  #home-btn{flex-shrink:0; font-size:18px;}
+  #home-btn.active-home{background:var(--led-arm); border-color:var(--led-arm);}
+  .topinfo{flex:1; min-width:0;}
+  .topinfo-line{font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topinfo-line.small{font-size:11px; font-weight:400; color:var(--muted); margin-top:2px;}
+  .search input{background:none; border:none; outline:none; flex:1; font-size:15px;}
+  .search svg{opacity:.5;}
+  .cat-chips{display:flex; gap:8px; padding:0 18px 12px; overflow-x:auto;}
+  .cat-chips::-webkit-scrollbar{display:none;}
+  .cat-breadcrumb{display:flex; align-items:center; gap:4px; padding:0 18px 8px; overflow-x:auto; font-size:12px; color:var(--muted);}
+  .cat-breadcrumb::-webkit-scrollbar{display:none;}
+  .crumb{flex-shrink:0; padding:5px 10px; border-radius:8px; white-space:nowrap;}
+  .crumb.active{color:var(--led-arm); font-weight:600;}
+  .crumb.root{font-size:17px; font-weight:700; padding:7px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; color:var(--text);}
+  .crumb.root.active{color:var(--led-arm); border-color:var(--led-arm);}
+  .crumb-sep{color:var(--muted2); flex-shrink:0;}
+  .crumb-del{flex-shrink:0; padding:5px 8px; opacity:.7;}
+  .chip{flex-shrink:0; padding:7px 14px; border-radius:20px; background:var(--panel); border:1px solid var(--line); font-size:13px; color:var(--muted); white-space:nowrap;}
+  .chip.active{background:var(--led-arm); color:#0B1410; border-color:var(--led-arm); font-weight:600;}
+  .item .tag{font-size:11px; color:var(--muted2); font-family:'IBM Plex Mono',monospace; margin-top:1px;}
+  #list{flex:1; overflow-y:auto; padding:0 18px 120px;}
+  .empty{color:var(--muted2); text-align:center; margin-top:60px; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .item{display:flex; align-items:center; gap:12px; padding:14px 12px; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:10px;}
+  .item .zone{width:9px; height:9px; border-radius:50%; background:var(--led-arm); flex-shrink:0;}
+  .item .meta{flex:1; min-width:0;}
+  .item .service{font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item .user{font-size:13px; color:var(--muted); font-family:'IBM Plex Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item .chev{color:var(--muted2); font-size:15px; padding:8px 4px 8px 10px;}
+  .fab{position:fixed; right:20px; bottom:calc(34px + env(safe-area-inset-bottom, 0px)); width:56px; height:56px; border-radius:50%; background:var(--led-arm); color:#0B1410; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(61,220,132,.35); z-index:4;}
+  .credit-strip{position:fixed; left:0; right:0; bottom:0; z-index:3; text-align:center;
+    padding:8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    background:linear-gradient(90deg, #3E7BE0, #3DDC84);
+    color:#fff; font-size:12px; font-weight:700; letter-spacing:.03em;
+    box-shadow:0 -4px 14px rgba(0,0,0,.15);}
+  .fab-menu{position:fixed; right:20px; bottom:calc(98px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:8px; opacity:0; pointer-events:none; transform:translateY(8px); transition:.18s; z-index:4;}
+  .fab-menu.open{opacity:1; pointer-events:auto; transform:translateY(0);}
+  .fab-menu button{background:var(--panel); border:1px solid var(--line); color:var(--text); padding:11px 16px; border-radius:12px; font-size:14px; white-space:nowrap; box-shadow:0 6px 16px rgba(0,0,0,.3); text-align:left;}
+  .fab svg{width:26px; height:26px;}
+
+  /* ---------- Sheet (editor) ---------- */
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; z-index:5;}
+  .sheet{position:fixed; left:0; right:0; bottom:0; max-width:480px; margin:0 auto; background:var(--panel);
+         border-radius:20px 20px 0 0; border:1px solid var(--line); border-bottom:none; padding:18px 20px 28px;
+         transform:translateY(100%); transition:transform .28s ease; z-index:6; max-height:88vh; overflow-y:auto;}
+  .sheet.open{transform:translateY(0);}
+  .overlay.open{display:block;}
+  .sheet-handle{width:36px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 16px;}
+  .sheet h2{margin:0 0 16px; font-size:17px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .field .row{display:flex; gap:8px;}
+  .field input, .field textarea{width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:15px; outline:none;}
+  .field textarea{resize:none; min-height:60px; font-family:inherit;}
+  .field .row input{flex:1;}
+  .smallbtn{padding:0 12px; border-radius:10px; background:var(--bg); border:1px solid var(--line); font-size:13px; color:var(--muted);}
+  .sheet-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn{flex:1; padding:13px; border-radius:12px; font-weight:600; font-size:14px; text-align:center;}
+  .btn-primary{background:var(--led-arm); color:#0B1410;}
+  .btn-ghost{background:var(--bg); border:1px solid var(--line); color:var(--text);}
+  .btn-danger{background:rgba(255,93,93,.12); color:var(--led-danger); border:1px solid rgba(255,93,93,.3);}
+
+  /* ---------- Settings sheet ---------- */
+  .settings-row{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);}
+  .settings-row:last-child{border-bottom:none;}
+  .history-item{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; background:var(--bg); border:1px solid var(--line); border-radius:8px; margin-bottom:6px; font-family:'IBM Plex Mono',monospace; font-size:13px;}
+  .history-item span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .history-item button{color:var(--muted); font-size:12px; flex-shrink:0;}
+  .settings-row .t{font-size:14px;}
+  .settings-row .s{font-size:12px; color:var(--muted2); margin-top:2px;}
+  .switch{width:44px; height:26px; border-radius:14px; background:var(--line); position:relative; transition:.2s; flex-shrink:0;}
+  .switch.on{background:var(--led-arm);}
+  .switch::after{content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s;}
+  .switch.on::after{transform:translateX(18px);}
+  .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line);
+         padding:10px 18px; border-radius:20px; font-size:13px; z-index:20; opacity:0; transition:.25s; pointer-events:none;}
+  .toast.show{opacity:1; bottom:40px;}
+  select{color:var(--text); accent-color:var(--led-arm);}
+  select option{background:var(--panel); color:var(--text);}
+  ::selection{background:rgba(61,220,132,.3);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOCK / SETUP -->
+  <section id="screen-lock">
+    <div class="lock-card">
+      <div class="lock-head">
+        <div class="led amber" id="led"></div>
+        <div class="lock-title" id="lock-title">CASSAFORTE</div>
+        <div class="lock-sub" id="lock-sub">Caricamento…</div>
+      </div>
+      <div class="dots" id="dots"></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="keyrow-actions">
+        <button class="key-action clear" id="btn-clear-pin">⌫ Cancella</button>
+        <button class="key-action login" id="btn-submit-pin">Accedi</button>
+      </div>
+      <button class="biolink" id="bio-btn" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5Z"/><path d="M7 9v3a5 5 0 0 0 10 0V9M4 12v1a8 8 0 0 0 16 0v-1"/></svg>
+        Sblocca con impronta / Face ID
+      </button>
+      <div class="setup-note" id="setup-note" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- VAULT -->
+  <section id="screen-vault">
+    <div class="topbar">
+      <div class="topinfo">
+        <div class="topinfo-line" id="last-modified-line">Ultima modifica: —</div>
+        <div class="topinfo-line small" id="last-backup-line">Ultimo backup: —</div>
+        <div class="topinfo-line small" id="total-count-line">Servizi totali: 0</div>
+      </div>
+      <button class="iconbtn" id="btn-settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+      <button class="iconbtn" id="btn-lock">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </button>
+    </div>
+    <div class="search-row">
+      <button class="iconbtn" id="home-btn">🏠</button>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search-input" placeholder="Cerca servizio…">
+      </div>
+    </div>
+    <div class="cat-breadcrumb" id="cat-breadcrumb"></div>
+    <div class="cat-chips" id="cat-chips"></div>
+    <div id="list"></div>
+    <div id="fab-menu" class="fab-menu">
+      <button id="fab-new-cat">🗂 Nuova cartella</button>
+      <button id="fab-new-entry">🔑 Nuova voce</button>
+    </div>
+    <button class="fab" id="btn-add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <div class="credit-strip">Created da Claude AI per Aldo — v.2.07</div>
+  </section>
+
+  <div class="overlay" id="overlay"></div>
+
+  <!-- EDITOR SHEET -->
+  <div class="sheet" id="sheet-edit">
+    <div class="sheet-handle"></div>
+    <h2 id="edit-title">Nuova voce</h2>
+    <div class="field"><label>Servizio</label><input id="f-service" placeholder="Es. Gmail, Router ufficio…"></div>
+    <div class="field">
+      <label>Categoria</label>
+      <select id="f-category" style="width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:15px;"></select>
+    </div>
+    <div class="field"><label>Utente / email</label><input id="f-user" autocapitalize="off"></div>
+    <div class="field">
+      <label>Password</label>
+      <div class="row">
+        <input id="f-pass" type="text" autocapitalize="off">
+        <button class="smallbtn" id="btn-genpass">Genera</button>
+        <button class="smallbtn" id="btn-showpass">👁</button>
+      </div>
+    </div>
+    <div class="field" id="history-field" style="display:none;">
+      <label>Password precedenti</label>
+      <div id="history-list"></div>
+    </div>
+    <div class="field"><label>Link pagina web (opzionale)</label><input id="f-link" type="url" autocapitalize="off" placeholder="https://…"></div>
+    <div class="field"><label>Note (opzionale)</label><textarea id="f-notes"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-cancel-edit">Annulla</button>
+      <button class="btn btn-primary" id="btn-save-edit">Salva</button>
+    </div>
+    <button class="btn btn-danger" id="btn-delete-edit" style="width:100%; margin-top:10px; display:none;">Elimina voce</button>
+    <button class="btn btn-ghost" id="btn-duplicate-edit" style="width:100%; margin-top:10px; display:none;">📋 Duplica voce</button>
+  </div>
+
+  <!-- ESPORTA SELEZIONE SHEET -->
+  <div class="sheet" id="sheet-export-select" style="max-height:80vh;">
+    <div class="sheet-handle"></div>
+    <h2>Esporta selezione</h2>
+    <div class="s" style="margin-bottom:10px;">Spunta singole voci o l'intera cartella. Il file sarà protetto da un PIN che scegli ora, diverso da quello della cassaforte — comunicalo a parte a chi lo riceve.</div>
+    <div id="export-tree" style="max-height:44vh; overflow-y:auto; border:1px solid var(--line); border-radius:10px; padding:8px;"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-cancel-export-select">Annulla</button>
+      <button class="btn btn-primary" id="btn-do-export-select">Esporta selezionate (0)</button>
+    </div>
+  </div>
+
+  <!-- NUOVA CARTELLA SHEET -->
+  <div class="sheet" id="sheet-newcat">
+    <div class="sheet-handle"></div>
+    <h2>Nuova cartella</h2>
+    <div class="field"><label>Nome cartella</label><input id="newcat-name" placeholder="Es. Social, Clienti, Router…"></div>
+    <div class="field"><label>Cartella principale da cui dipende</label>
+      <select id="newcat-parent" style="width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:15px;"></select>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-cancel-newcat">Annulla</button>
+      <button class="btn btn-primary" id="btn-save-newcat">Crea</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-settings">
+    <div class="sheet-handle"></div>
+    <h2>Impostazioni</h2>
+    <div class="settings-row">
+      <div><div class="t">Persistenza dati sul telefono</div><div class="s" id="persist-status">Verifica…</div></div>
+      <button class="smallbtn" id="btn-recheck-persist">Riprova</button>
+    </div>
+    <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div style="display:flex; justify-content:space-between;">
+        <div class="t">Blocco automatico dopo inattività</div>
+        <div class="t" id="autolock-value" style="color:var(--led-arm); font-weight:700;">3 min</div>
+      </div>
+      <input type="range" id="autolock-slider" min="1" max="25" step="1" value="3" style="width:100%; accent-color:var(--led-arm);">
+      <div class="s">Utile mentre carichi tante voci di fila: alzalo per non dover rifare il login ogni volta</div>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Sblocco biometrico</div><div class="s" id="bio-support-note">Verifica supporto…</div></div>
+      <div class="switch" id="toggle-bio"></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Cambia PIN</div><div class="s">Richiede il PIN attuale</div></div>
+      <button class="smallbtn" id="btn-change-pin">Cambia</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Esporta backup cifrato</div><div class="s">File .json, illeggibile senza PIN</div></div>
+      <button class="smallbtn" id="btn-export">Esporta</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Esporta selezione</div><div class="s">Scegli singole voci o cartelle intere da condividere, con un PIN dedicato solo a questo file</div></div>
+      <button class="smallbtn" id="btn-export-select">Scegli</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Importa backup</div><div class="s">Unisce le voci al vault attuale</div></div>
+      <button class="smallbtn" id="btn-import">Importa</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Importa da Excel</div><div class="s">File .xlsx: colonne Servizio, Utente, Password, Link, Note, Categoria</div></div>
+      <button class="smallbtn" id="btn-import-xlsx">Importa</button>
+    </div>
+    <input type="file" id="file-import" accept="application/json" style="display:none;">
+    <input type="file" id="file-import-xlsx" accept=".xlsx,.xls" style="display:none;">
+    <button class="btn btn-ghost" id="btn-close-settings" style="width:100%; margin-top:16px;">Chiudi</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ============ Utility ============ */
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (str) => Uint8Array.from(atob(str), c => c.charCodeAt(0));
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+
+/* ============ IndexedDB ============ */
+let dbp = new Promise((resolve, reject) => {
+  const req = indexedDB.open("cassaforte-db", 2);
+  req.onupgradeneeded = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta");
+    if (!db.objectStoreNames.contains("entries")) db.createObjectStore("entries", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("categories")) db.createObjectStore("categories", { keyPath: "id" });
+  };
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function idbGet(store, key){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, "readonly").objectStore(store).get(key);
+    tx.onsuccess = () => res(tx.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbSet(store, key, val){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const os = db.transaction(store, "readwrite").objectStore(store);
+    const tx = key === undefined ? os.put(val) : os.put(val, key);
+    tx.onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbDel(store, key){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, "readwrite").objectStore(store).delete(key);
+    tx.onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbAll(store){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, "readonly").objectStore(store).getAll();
+    tx.onsuccess = () => res(tx.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbClear(store){
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, "readwrite").objectStore(store).clear();
+    tx.onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* ============ Crypto ============ */
+const CHECK_PLAINTEXT = "VAULT_OK_v1";
+async function deriveKey(pin, saltB64){
+  const salt = unb64(saltB64);
+  const baseKey = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" },
+    baseKey, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+  );
+}
+async function encryptJSON(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(obj)));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function decryptJSON(key, ivB64, ctB64){
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(ivB64) }, key, unb64(ctB64));
+  return JSON.parse(dec.decode(pt));
+}
+
+/* ============ Stato applicazione ============ */
+let state = {
+  vaultKey: null,       // CryptoKey in memoria, mai persistito
+  entries: [],           // {id, service, user, pass, notes, categoryId} decifrate in memoria
+  categories: [],         // {id, name, parent}
+  activeFilter: "all",    // 'all' | categoryId
+  rootExpanded: false,
+  browsePath: [],         // array di categoryId, percorso di navigazione corrente
+  pinBuffer: "",
+  mode: "unlock",        // 'setup' | 'unlock' | 'confirm' | 'change-old' | 'change-new'
+  tempPin: "",
+  editingId: null,
+  autoLockTimer: null,
+  bioCredId: null,
+};
+
+let AUTO_LOCK_MINUTES = 3;
+function resetAutoLock(){
+  clearTimeout(state.autoLockTimer);
+  state.lastActivity = Date.now();
+  if (state.vaultKey) state.autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MINUTES * 60 * 1000);
+}
+["click","touchstart","keydown"].forEach(ev => document.addEventListener(ev, resetAutoLock, { passive: true }));
+// il blocco avviene solo allo scadere del tempo scelto nelle Impostazioni: al ritorno in primo piano
+// ricalcoliamo il tempo reale trascorso (i timer si congelano quando l'app e' in background)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && state.vaultKey && state.lastActivity){
+    const elapsedMs = Date.now() - state.lastActivity;
+    if (elapsedMs >= AUTO_LOCK_MINUTES * 60 * 1000) lockVault();
+    else resetAutoLock();
+  }
+});
+
+/* ============ Keypad ============ */
+function buildKeypad(){
+  const kp = $("keypad");
+  kp.innerHTML = "";
+  const layout = ["1","2","3","4","5","6","7","8","9","0"];
+  layout.forEach(k => {
+    const b = document.createElement("button");
+    b.className = "key";
+    b.textContent = k;
+    b.onclick = () => onKey(k);
+    kp.appendChild(b);
+  });
+}
+function renderDots(len, filled){
+  const d = $("dots");
+  d.innerHTML = "";
+  for (let i=0;i<len;i++){
+    const dot = document.createElement("div");
+    dot.className = "dot" + (i < filled ? " filled" : "");
+    d.appendChild(dot);
+  }
+}
+function shakeDots(){
+  const d = $("dots");
+  d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake");
+}
+function setLed(cls){ $("led").className = "led " + cls; }
+const SUBMIT_LABELS = { setup:"Crea", confirm:"Conferma", unlock:"Accedi", "change-old":"Verifica", "change-new":"Crea", "change-confirm":"Conferma" };
+function refreshSubmitLabel(){ $("btn-submit-pin").textContent = SUBMIT_LABELS[state.mode] || "Accedi"; }
+
+async function onKey(k){
+  if (state.pinBuffer.length >= 8) return;
+  state.pinBuffer += k;
+  renderDots(8, state.pinBuffer.length);
+}
+$("btn-clear-pin").onclick = () => {
+  state.pinBuffer = state.pinBuffer.slice(0,-1);
+  renderDots(8, state.pinBuffer.length);
+};
+$("btn-submit-pin").onclick = () => tryConfirm();
+
+async function tryConfirm(){
+  const pin = state.pinBuffer;
+  const flexible = (state.mode === "change-old" || state.mode === "unlock");
+  if (pin.length < (flexible ? 4 : 8)) return;
+  if (state.mode === "setup"){
+    state.tempPin = pin;
+    state.pinBuffer = "";
+    state.mode = "confirm"; refreshSubmitLabel();
+    $("lock-sub").textContent = "Conferma il nuovo PIN";
+    renderDots(pin.length, 0);
+    setLed("amber");
+    return;
+  }
+  if (state.mode === "confirm"){
+    if (pin !== state.tempPin){
+      shakeDots(); setLed("danger");
+      toast("I PIN non coincidono, riprova");
+      state.pinBuffer=""; state.mode="setup"; state.tempPin="";
+      $("lock-sub").textContent = "Crea PIN";
+      renderDots(8,0);
+      setTimeout(()=>setLed("amber"), 400);
+      return;
+    }
+    await createVault(pin);
+    return;
+  }
+  if (state.mode === "unlock"){
+    const ok = await tryUnlock(pin);
+    if (!ok){
+      shakeDots(); setLed("danger");
+      toast("PIN errato");
+      state.pinBuffer="";
+      setTimeout(()=>{ setLed("amber"); renderDots(8,0); }, 400);
+    }
+    return;
+  }
+  if (state.mode === "change-old"){
+    const meta = await idbGet("meta","auth");
+    try{
+      const key = await deriveKey(pin, meta.salt);
+      const check = await decryptJSON(key, meta.checkIv, meta.checkCt);
+      if (check.v !== CHECK_PLAINTEXT) throw new Error("bad pin");
+      state._oldKey = key;
+      state.pinBuffer = "";
+      state.mode = "change-new"; refreshSubmitLabel();
+      $("lock-sub").textContent = "Inserisci il nuovo PIN";
+      renderDots(8,0);
+    }catch(e){
+      shakeDots(); toast("PIN attuale errato");
+      state.pinBuffer=""; renderDots(8,0);
+    }
+    return;
+  }
+  if (state.mode === "change-confirm"){
+    if (pin !== state.tempPin){
+      toast("I PIN non coincidono"); state.pinBuffer=""; state.mode="change-new";
+      $("lock-sub").textContent = "Inserisci il nuovo PIN"; renderDots(8,0);
+      return;
+    }
+    await applyPinChange(pin);
+    return;
+  }
+  if (state.mode === "change-new"){
+    state.tempPin = pin; state.pinBuffer=""; state.mode="change-confirm"; refreshSubmitLabel();
+    $("lock-sub").textContent = "Conferma il nuovo PIN"; renderDots(pin.length,0);
+    return;
+  }
+}
+
+/* ============ Setup / Unlock ============ */
+async function createVault(pin){
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const key = await deriveKey(pin, salt);
+  const { iv, ct } = await encryptJSON(key, { v: CHECK_PLAINTEXT });
+  await idbSet("meta","auth",{ salt, checkIv: iv, checkCt: ct, bioEnabled:false });
+  state.vaultKey = key; state.entries = [];
+  toast("Cassaforte creata");
+  enterVault();
+}
+async function tryUnlock(pin){
+  const meta = await idbGet("meta","auth");
+  try{
+    const key = await deriveKey(pin, meta.salt);
+    const check = await decryptJSON(key, meta.checkIv, meta.checkCt);
+    if (check.v !== CHECK_PLAINTEXT) return false;
+    state.vaultKey = key;
+    await loadEntries();
+    setLed("arm");
+    setTimeout(enterVault, 220);
+    return true;
+  }catch(e){ return false; }
+}
+async function loadEntries(){
+  const rows = await idbAll("entries");
+  state.entries = [];
+  for (const r of rows){
+    try{ const data = await decryptJSON(state.vaultKey, r.iv, r.ct); state.entries.push({ id: r.id, ...data }); }
+    catch(e){ /* voce corrotta, ignorata */ }
+  }
+}
+/* ============ Categorie (albero a profondità illimitata) ============ */
+const CAT_PALETTE = ["#3E7BE0","#3DDC84","#FFB020","#FF6FA5","#8B5CF6","#22C1C3","#F97316","#EAB308","#EF4444","#14B8A6","#6366F1","#EC4899"];
+function randomCatColor(){ return CAT_PALETTE[Math.floor(Math.random()*CAT_PALETTE.length)]; }
+function contrastText(hex){
+  const c = hex.replace("#","");
+  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+  const yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 150 ? "#16202B" : "#FFFFFF";
+}
+async function ensureDefaultCategories(){
+  const existing = await idbAll("categories");
+  if (existing.length === 0){
+    await idbSet("categories", undefined, { id: "personale", name: "Personale", parent: null, fixed: true, color: "#3E7BE0" });
+    await idbSet("categories", undefined, { id: "lavoro", name: "Lavoro", parent: null, fixed: true, color: "#FFB020" });
+  }
+}
+async function loadCategories(){
+  state.categories = await idbAll("categories");
+}
+function catChildren(parentId){ return state.categories.filter(c => c.parent === parentId).sort((a,b)=>a.name.localeCompare(b.name)); }
+function catById(id){ return state.categories.find(c => c.id === id); }
+function catLabelPath(id){
+  const names = []; let cur = catById(id);
+  while (cur){ names.unshift(cur.name); cur = cur.parent ? catById(cur.parent) : null; }
+  return names.join(" › ");
+}
+function isDescendantOrSelf(catId, ancestorId){
+  let cur = catById(catId);
+  while (cur){ if (cur.id === ancestorId) return true; cur = cur.parent ? catById(cur.parent) : null; }
+  return false;
+}
+function flattenCategoryTree(){
+  const result = [];
+  (function walk(parentId, depth){
+    catChildren(parentId).forEach(c => { result.push({ id: c.id, name: c.name, depth }); walk(c.id, depth+1); });
+  })(null, 0);
+  return result;
+}
+function populateSelectWithTree(selectEl, selectedId, excludeId){
+  selectEl.innerHTML = "";
+  flattenCategoryTree().filter(c => c.id !== excludeId).forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.id; opt.textContent = "— ".repeat(c.depth) + c.name;
+    selectEl.appendChild(opt);
+  });
+  if (selectedId && [...selectEl.options].some(o => o.value === selectedId)) selectEl.value = selectedId;
+}
+function populateCategorySelect(selectedId){ populateSelectWithTree($("f-category"), selectedId); }
+
+function openNewCategorySheet(defaultParent){
+  $("newcat-name").value = "";
+  const fallback = defaultParent || (state.browsePath.length ? state.browsePath[state.browsePath.length-1] : $("f-category").value) || "personale";
+  populateSelectWithTree($("newcat-parent"), fallback);
+  openSheet("sheet-newcat");
+}
+$("btn-cancel-newcat").onclick = () => closeSheet("sheet-newcat");
+$("btn-save-newcat").onclick = async () => {
+  const name = $("newcat-name").value.trim();
+  if (!name){ toast("Inserisci un nome"); return; }
+  const parent = $("newcat-parent").value || "personale";
+  const dup = catChildren(parent).some(c => c.name.toLowerCase() === name.toLowerCase());
+  if (dup){ toast("Esiste già una cartella con questo nome qui"); return; }
+  const id = "c_" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random());
+  await idbSet("categories", undefined, { id, name, parent, fixed: false, color: randomCatColor() });
+  await loadCategories();
+  populateCategorySelect(id);
+  renderCatChips();
+  closeSheet("sheet-newcat");
+  toast("Cartella creata");
+};
+
+async function deleteCategory(id){
+  const cat = catById(id);
+  if (!cat || cat.fixed) return;
+  const toRemove = [];
+  (function collect(cid){ toRemove.push(cid); catChildren(cid).forEach(c => collect(c.id)); })(id);
+  const count = state.entries.filter(e => toRemove.includes(e.categoryId)).length;
+  const msg = count > 0
+    ? `Eliminare "${cat.name}" e le sue eventuali sottocartelle? ${count} voce/e verranno spostate in "${catById(cat.parent).name}".`
+    : `Eliminare la cartella "${cat.name}"?`;
+  if (!confirm(msg)) return;
+  // sposta le voci coinvolte sulla cartella padre prima di eliminare
+  for (const e of state.entries){
+    if (toRemove.includes(e.categoryId)){
+      const newCatId = cat.parent || "personale";
+      const { iv, ct } = await encryptJSON(state.vaultKey, { ...e, categoryId: newCatId });
+      await idbSet("entries", undefined, { id: e.id, iv, ct });
+      e.categoryId = newCatId;
+    }
+  }
+  for (const cid of toRemove) await idbDel("categories", cid);
+  await loadCategories();
+  state.browsePath = state.browsePath.filter(p => !toRemove.includes(p));
+  state.activeFilter = toRemove.includes(state.activeFilter) ? (cat.parent || "all") : state.activeFilter;
+  renderCatChips(); renderList();
+  toast("Cartella eliminata");
+}
+
+function renderCatChips(){
+  const crumbWrap = $("cat-breadcrumb");
+  const chipWrap = $("cat-chips");
+  crumbWrap.innerHTML = ""; chipWrap.innerHTML = "";
+
+  // la casetta radice ora sta accanto al campo ricerca (home-btn), qui solo il percorso sceso
+  $("home-btn").classList.toggle("active-home", !state.rootExpanded);
+
+  state.browsePath.forEach((id, idx) => {
+    if (idx > 0){
+      const sep = document.createElement("span"); sep.className = "crumb-sep"; sep.textContent = "›";
+      crumbWrap.appendChild(sep);
+    }
+    const c = document.createElement("div");
+    c.className = "crumb" + (idx === state.browsePath.length - 1 ? " active" : "");
+    c.textContent = catById(id) ? catById(id).name : "";
+    c.onclick = () => { state.browsePath = state.browsePath.slice(0, idx + 1); state.activeFilter = id; renderCatChips(); renderList(); };
+    crumbWrap.appendChild(c);
+    if (idx === state.browsePath.length - 1 && catById(id) && !catById(id).fixed){
+      const del = document.createElement("span");
+      del.className = "crumb-del"; del.textContent = "🗑";
+      del.onclick = (ev) => { ev.stopPropagation(); deleteCategory(id); };
+      crumbWrap.appendChild(del);
+    }
+  });
+
+  // riga sottostante: figlie del livello corrente (vuota se la radice non e' ancora espansa)
+  if (!state.rootExpanded) return;
+  const parentId = state.browsePath.length ? state.browsePath[state.browsePath.length - 1] : null;
+  catChildren(parentId).forEach(c => {
+    const chip = document.createElement("div");
+    chip.className = "chip" + (state.activeFilter === c.id ? " active" : "");
+    const hasChildren = catChildren(c.id).length > 0;
+    const count = state.entries.filter(e => isDescendantOrSelf(e.categoryId, c.id)).length;
+    chip.textContent = c.name + " (" + count + ")" + (hasChildren ? " ›" : "");
+    const color = c.color || "#3E7BE0";
+    if (state.activeFilter === c.id){
+      chip.style.background = color; chip.style.borderColor = color; chip.style.color = contrastText(color);
+    } else {
+      chip.style.borderColor = color; chip.style.color = color;
+    }
+    chip.onclick = () => {
+      state.browsePath.push(c.id);
+      state.activeFilter = c.id;
+      renderCatChips(); renderList();
+    };
+    chipWrap.appendChild(chip);
+  });
+}
+
+
+/* ============ Menu del tasto + (nuova voce / nuova cartella) ============ */
+$("btn-add").onclick = (ev) => {
+  ev.stopPropagation();
+  $("fab-menu").classList.toggle("open");
+};
+document.addEventListener("click", () => $("fab-menu").classList.remove("open"));
+$("fab-new-entry").onclick = (ev) => { ev.stopPropagation(); $("fab-menu").classList.remove("open"); openEditor(null); };
+$("fab-new-cat").onclick = (ev) => { ev.stopPropagation(); $("fab-menu").classList.remove("open"); openNewCategorySheet(); };
+
+async function enterVault(){
+  await loadCategories();
+  renderCatChips();
+  const meta = await idbGet("meta","auth");
+  AUTO_LOCK_MINUTES = (meta && meta.autoLockMinutes) ? meta.autoLockMinutes : 3;
+  refreshTopInfo(meta);
+  $("screen-lock").style.display = "none";
+  $("screen-vault").style.display = "flex";
+  renderList();
+  resetAutoLock();
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+  if (state.entries.length > 0 && (!meta.lastBackup || (Date.now() - meta.lastBackup) > twoDaysMs)){
+    setTimeout(() => toast("⚠️ Backup non recente: fallo dalle Impostazioni"), 800);
+  }
+}
+function formatDateTime(ts){
+  if (!ts) return "—";
+  const d = new Date(ts);
+  return d.toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric"}) + " " + d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+}
+function refreshTopInfo(meta){
+  $("last-modified-line").textContent = "Ultima modifica: " + formatDateTime(meta && meta.lastModified);
+  $("last-backup-line").textContent = "Ultimo backup: " + formatDateTime(meta && meta.lastBackup);
+}
+async function touchLastModified(){
+  const meta = await idbGet("meta","auth");
+  meta.lastModified = Date.now();
+  await idbSet("meta","auth", meta);
+  refreshTopInfo(meta);
+}
+async function touchLastBackup(){
+  const meta = await idbGet("meta","auth");
+  meta.lastBackup = Date.now();
+  await idbSet("meta","auth", meta);
+  refreshTopInfo(meta);
+}
+function lockVault(){
+  state.vaultKey = null;
+  state.entries = [];
+  state.pinBuffer = "";
+  clearTimeout(state.autoLockTimer);
+  $("screen-vault").style.display = "none";
+  $("screen-lock").style.display = "flex";
+  closeSheet("sheet-edit"); closeSheet("sheet-settings"); closeSheet("sheet-newcat"); closeSheet("sheet-export-select");
+  boot(true);
+}
+
+/* ============ Lista / ricerca ============ */
+function renderList(){
+  const q = $("search-input").value.trim().toLowerCase();
+  const list = $("list");
+  $("total-count-line").textContent = "Servizi totali: " + state.entries.length;
+  const filtered = state.entries
+    .filter(e => !q || e.service.toLowerCase().includes(q) || (e.user||"").toLowerCase().includes(q))
+    .filter(e => state.activeFilter === "all" || isDescendantOrSelf(e.categoryId, state.activeFilter))
+    .sort((a,b) => a.service.localeCompare(b.service));
+  list.innerHTML = "";
+  if (filtered.length === 0){
+    list.innerHTML = `<div class="empty">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <div>${state.entries.length===0 ? "Nessuna voce. Tocca + per aggiungerne una." : "Nessun risultato."}</div>
+    </div>`;
+    return;
+  }
+  filtered.forEach(e => {
+    const el = document.createElement("div");
+    el.className = "item";
+    const cat = catById(e.categoryId);
+    const color = (cat && cat.color) || "#3E7BE0";
+    el.style.borderLeft = "4px solid " + color;
+    el.innerHTML = `<div class="zone"></div>
+      <div class="meta"><div class="service"></div><div class="user"></div><div class="tag"></div></div>
+      <div class="chev">✏️</div>`;
+    el.querySelector(".zone").style.background = color;
+    el.querySelector(".service").textContent = e.service;
+    el.querySelector(".user").textContent = e.user || "—";
+    el.querySelector(".tag").textContent = catLabelPath(e.categoryId) || "";
+    el.querySelector(".tag").style.color = color;
+    el.onclick = (ev) => { if (ev.target.closest(".open-link")) return; openEditor(e.id); };
+    if (e.link){
+      const link = document.createElement("a");
+      link.className = "open-link"; link.href = e.link; link.target = "_blank"; link.rel = "noopener";
+      link.textContent = "🌐"; link.style.cssText = "font-size:17px; padding:8px 10px; margin-right:6px;";
+      el.insertBefore(link, el.querySelector(".chev"));
+    }
+    list.appendChild(el);
+  });
+}
+$("search-input").addEventListener("input", renderList);
+
+/* ============ Editor voce ============ */
+function openSheet(id){ $("overlay").classList.add("open"); $(id).classList.add("open"); }
+function closeSheet(id){ $(id).classList.remove("open"); if(![...document.querySelectorAll(".sheet")].some(s=>s.classList.contains("open"))) $("overlay").classList.remove("open"); }
+$("overlay").onclick = () => { closeSheet("sheet-edit"); closeSheet("sheet-settings"); closeSheet("sheet-newcat"); closeSheet("sheet-export-select"); };
+
+function openEditor(id){
+  state.editingId = id || null;
+  const e = id ? state.entries.find(x => x.id === id) : { service:"", user:"", pass:"", link:"", notes:"", history:[], categoryId: (state.activeFilter !== "all" ? state.activeFilter : "personale") };
+  $("edit-title").textContent = id ? "Modifica voce" : "Nuova voce";
+  $("f-service").value = e.service; $("f-user").value = e.user || "";
+  $("f-pass").value = e.pass || ""; $("f-pass").type = "password";
+  $("f-link").value = e.link || "";
+  $("f-notes").value = e.notes || "";
+  populateCategorySelect(e.categoryId);
+  renderHistory(e.history || []);
+  $("btn-delete-edit").style.display = id ? "block" : "none";
+  $("btn-duplicate-edit").style.display = id ? "block" : "none";
+  openSheet("sheet-edit");
+}
+function renderHistory(hist){
+  const field = $("history-field"); const list = $("history-list");
+  list.innerHTML = "";
+  field.style.display = "block";
+  if (!hist || hist.length === 0){
+    list.innerHTML = `<div style="font-size:13px; color:var(--muted2); padding:8px 2px;">Nessuna modifica precedente</div>`;
+    return;
+  }
+  hist.slice(0,5).forEach(pw => {
+    const row = document.createElement("div");
+    row.className = "history-item";
+    row.innerHTML = `<span>${"•".repeat(Math.min(pw.length,14))}</span>`;
+    const btn = document.createElement("button");
+    btn.textContent = "mostra";
+    btn.onclick = () => { const s = row.querySelector("span"); const showing = s.dataset.shown === "1";
+      s.textContent = showing ? "•".repeat(Math.min(pw.length,14)) : pw; s.dataset.shown = showing ? "0" : "1";
+      btn.textContent = showing ? "mostra" : "nascondi"; };
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+$("btn-cancel-edit").onclick = () => closeSheet("sheet-edit");
+$("btn-showpass").onclick = () => { const f=$("f-pass"); f.type = f.type === "password" ? "text" : "password"; };
+$("btn-genpass").onclick = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
+  const arr = crypto.getRandomValues(new Uint32Array(18));
+  $("f-pass").value = Array.from(arr, n => chars[n % chars.length]).join("");
+  $("f-pass").type = "text";
+};
+$("btn-save-edit").onclick = async () => {
+  const service = $("f-service").value.trim();
+  if (!service){ toast("Inserisci il nome del servizio"); return; }
+  const newPass = $("f-pass").value;
+  const id = state.editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+  const existing = state.editingId ? state.entries.find(e => e.id === id) : null;
+  let history = (existing && existing.history) ? [...existing.history] : [];
+  if (existing && existing.pass && existing.pass !== newPass){
+    history.unshift(existing.pass);
+    history = history.slice(0,5);
+  }
+  const data = { service, user: $("f-user").value.trim(), pass: newPass, link: $("f-link").value.trim(), notes: $("f-notes").value.trim(), history, categoryId: $("f-category").value || "personale" };
+  const { iv, ct } = await encryptJSON(state.vaultKey, data);
+  await idbSet("entries", undefined, { id, iv, ct });
+  const idx = state.entries.findIndex(e => e.id === id);
+  if (idx >= 0) state.entries[idx] = { id, ...data }; else state.entries.push({ id, ...data });
+  closeSheet("sheet-edit"); renderCatChips(); renderList(); touchLastModified(); toast("Salvato");
+};
+$("btn-delete-edit").onclick = async () => {
+  if (!state.editingId) return;
+  await idbDel("entries", state.editingId);
+  state.entries = state.entries.filter(e => e.id !== state.editingId);
+  closeSheet("sheet-edit"); renderCatChips(); renderList(); touchLastModified(); toast("Voce eliminata");
+};
+$("btn-duplicate-edit").onclick = async () => {
+  if (!state.editingId) return;
+  const original = state.entries.find(e => e.id === state.editingId);
+  if (!original) return;
+  const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+  const data = {
+    service: original.service + " (copia)",
+    user: original.user || "", pass: original.pass || "",
+    link: original.link || "", notes: original.notes || "",
+    history: [], categoryId: original.categoryId
+  };
+  const { iv, ct } = await encryptJSON(state.vaultKey, data);
+  await idbSet("entries", undefined, { id, iv, ct });
+  state.entries.push({ id, ...data });
+  renderCatChips(); renderList(); touchLastModified();
+  closeSheet("sheet-edit");
+  toast("Voce duplicata, modificala per il nuovo cliente");
+  openEditor(id);
+};
+
+/* ============ Lock manuale / settings ============ */
+$("btn-lock").onclick = lockVault;
+$("home-btn").onclick = () => { state.rootExpanded = true; state.browsePath = []; state.activeFilter = "all"; renderCatChips(); renderList(); };
+async function refreshPersistStatus(){
+  const el = $("persist-status");
+  if (!(navigator.storage && navigator.storage.persisted)){
+    el.textContent = "Non supportata da questo browser";
+    return;
+  }
+  const persisted = await navigator.storage.persisted();
+  el.textContent = persisted
+    ? "Attiva ✅ — i dati sono protetti da cancellazioni automatiche"
+    : "Non attiva ⚠️ — il telefono potrebbe cancellarli per liberare spazio";
+}
+$("btn-recheck-persist").onclick = async () => {
+  if (navigator.storage && navigator.storage.persist){
+    await navigator.storage.persist();
+  }
+  await refreshPersistStatus();
+};
+
+$("btn-settings").onclick = async () => {
+  await refreshBioUI();
+  await refreshPersistStatus();
+  $("autolock-slider").value = AUTO_LOCK_MINUTES;
+  $("autolock-value").textContent = AUTO_LOCK_MINUTES + " min";
+  openSheet("sheet-settings");
+};
+$("autolock-slider").oninput = () => {
+  $("autolock-value").textContent = $("autolock-slider").value + " min";
+};
+$("autolock-slider").onchange = async () => {
+  const minutes = parseInt($("autolock-slider").value, 10);
+  AUTO_LOCK_MINUTES = minutes;
+  const meta = await idbGet("meta","auth");
+  meta.autoLockMinutes = minutes;
+  await idbSet("meta","auth", meta);
+  resetAutoLock();
+  toast("Blocco automatico impostato a " + minutes + " min");
+};
+$("btn-close-settings").onclick = () => closeSheet("sheet-settings");
+
+$("btn-change-pin").onclick = () => {
+  closeSheet("sheet-settings");
+  state.mode = "change-old"; state.pinBuffer = ""; refreshSubmitLabel();
+  $("screen-vault").style.display = "none"; $("screen-lock").style.display = "flex";
+  $("lock-title").textContent = "CAMBIA PIN";
+  $("lock-sub").textContent = "Inserisci il PIN attuale";
+  $("bio-btn").style.display = "none"; $("setup-note").style.display="none";
+  renderDots(8,0); setLed("amber");
+};
+async function applyPinChange(newPin){
+  const rows = await idbAll("entries");
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const newKey = await deriveKey(newPin, salt);
+  for (const r of rows){
+    const data = await decryptJSON(state._oldKey, r.iv, r.ct);
+    const { iv, ct } = await encryptJSON(newKey, data);
+    await idbSet("entries", undefined, { id: r.id, iv, ct });
+  }
+  const { iv, ct } = await encryptJSON(newKey, { v: CHECK_PLAINTEXT });
+  const meta = await idbGet("meta","auth");
+  meta.salt = salt; meta.checkIv = iv; meta.checkCt = ct;
+  meta.bioEnabled = false; meta.bioCredId = null;
+  await idbSet("meta","auth", meta);
+  state.vaultKey = newKey; state._oldKey = null;
+  await loadEntries();
+  toast("PIN aggiornato");
+  $("lock-title").textContent = "CASSAFORTE";
+  enterVault();
+}
+
+/* ============ Export / Import ============ */
+$("btn-export").onclick = async () => {
+  const meta = await idbGet("meta","auth");
+  const rows = await idbAll("entries");
+  const cats = await idbAll("categories");
+  const content = JSON.stringify({ meta, entries: rows, categories: cats }, null, 2);
+  const defaultName = "cassaforte-backup-" + new Date().toISOString().slice(0,10) + ".json";
+
+  // se il browser supporta la scelta di nome e cartella (File System Access API), la usiamo
+  if (window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultName,
+        types: [{ description: "Backup Cassaforte", accept: { "application/json": [".json"] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      touchLastBackup(); toast("Backup esportato (cifrato)");
+      return;
+    }catch(e){
+      if (e && e.name === "AbortError") return; // annullato dall'utente
+      // altrimenti prosegue con il metodo di fallback qui sotto
+    }
+  }
+
+  // fallback: chiediamo solo il nome file, il browser sceglie la cartella (di solito Download)
+  let filename = prompt("Nome del file di backup:", defaultName);
+  if (filename === null) return; // annullato
+  filename = filename.trim() || defaultName;
+  if (!filename.toLowerCase().endsWith(".json")) filename += ".json";
+  const blob = new Blob([content], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  touchLastBackup(); toast("Backup esportato (cifrato) in Download");
+};
+
+/* ============ Esporta selezione (albero con caselle) ============ */
+let exportSelection = new Set();
+function exportUpdateButtonLabel(){
+  $("btn-do-export-select").textContent = "Esporta selezionate (" + exportSelection.size + ")";
+}
+function categoryEntryIds(catId){
+  return state.entries.filter(e => isDescendantOrSelf(e.categoryId, catId)).map(e => e.id);
+}
+function renderExportTree(){
+  const wrap = $("export-tree");
+  wrap.innerHTML = "";
+  function renderNode(catId, depth){
+    const cat = catById(catId);
+    const entryIds = categoryEntryIds(catId);
+    const allSelected = entryIds.length > 0 && entryIds.every(id => exportSelection.has(id));
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex; align-items:center; gap:8px; padding:6px 0; padding-left:" + (depth*16) + "px;";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = allSelected; cb.style.accentColor = cat.color || "#3E7BE0";
+    cb.onchange = () => {
+      entryIds.forEach(id => cb.checked ? exportSelection.add(id) : exportSelection.delete(id));
+      renderExportTree();
+    };
+    const label = document.createElement("span");
+    label.textContent = "🗂 " + cat.name + " (" + entryIds.length + ")";
+    label.style.color = cat.color || "var(--text)"; label.style.fontWeight = "600"; label.style.fontSize = "14px";
+    row.appendChild(cb); row.appendChild(label);
+    wrap.appendChild(row);
+
+    state.entries.filter(e => e.categoryId === catId).sort((a,b)=>a.service.localeCompare(b.service)).forEach(e => {
+      const erow = document.createElement("div");
+      erow.style.cssText = "display:flex; align-items:center; gap:8px; padding:5px 0; padding-left:" + ((depth+1)*16) + "px;";
+      const ecb = document.createElement("input");
+      ecb.type = "checkbox"; ecb.checked = exportSelection.has(e.id);
+      ecb.onchange = () => { ecb.checked ? exportSelection.add(e.id) : exportSelection.delete(e.id); exportUpdateButtonLabel(); };
+      const elabel = document.createElement("span");
+      elabel.textContent = "🔑 " + e.service;
+      elabel.style.fontSize = "13px"; elabel.style.color = "var(--muted)";
+      erow.appendChild(ecb); erow.appendChild(elabel);
+      wrap.appendChild(erow);
+    });
+
+    catChildren(catId).forEach(child => renderNode(child.id, depth+1));
+  }
+  catChildren(null).forEach(top => renderNode(top.id, 0));
+  exportUpdateButtonLabel();
+}
+$("btn-export-select").onclick = () => {
+  exportSelection = new Set();
+  renderExportTree();
+  closeSheet("sheet-settings");
+  openSheet("sheet-export-select");
+};
+$("btn-cancel-export-select").onclick = () => closeSheet("sheet-export-select");
+$("btn-do-export-select").onclick = async () => {
+  if (exportSelection.size === 0){ toast("Seleziona almeno una voce"); return; }
+  const pin1 = prompt("Scegli un PIN per proteggere questo file condiviso (almeno 6 cifre, diverso da quello della cassaforte se preferisci):");
+  if (pin1 === null) return;
+  const pin2 = prompt("Ripeti lo stesso PIN per conferma:");
+  if (pin2 === null) return;
+  if (pin1.trim() !== pin2.trim() || pin1.trim().length < 4){ toast("PIN non validi o non coincidenti"); return; }
+
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const shareKey = await deriveKey(pin1.trim(), salt);
+  const { iv: checkIv, ct: checkCt } = await encryptJSON(shareKey, { v: CHECK_PLAINTEXT });
+
+  const selectedEntries = state.entries.filter(e => exportSelection.has(e.id));
+  const entriesOut = [];
+  for (const e of selectedEntries){
+    const { id, ...data } = e;
+    const { iv, ct } = await encryptJSON(shareKey, data);
+    entriesOut.push({ id, iv, ct });
+  }
+  // includiamo la catena completa di cartelle per ogni voce selezionata, cosi' l'albero resta coerente
+  const neededCatIds = new Set();
+  selectedEntries.forEach(e => {
+    let cur = catById(e.categoryId);
+    while (cur){ neededCatIds.add(cur.id); cur = cur.parent ? catById(cur.parent) : null; }
+  });
+  const categoriesOut = state.categories.filter(c => neededCatIds.has(c.id));
+
+  const content = JSON.stringify({
+    meta: { salt, checkIv, checkCt },
+    entries: entriesOut,
+    categories: categoriesOut
+  }, null, 2);
+  const defaultName = "cassaforte-condivisa-" + new Date().toISOString().slice(0,10) + ".json";
+
+  if (window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultName,
+        types: [{ description: "Cassaforte condivisa", accept: { "application/json": [".json"] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      closeSheet("sheet-export-select");
+      toast(exportSelection.size + " voci esportate — condividi il file e comunica il PIN a parte");
+      return;
+    }catch(e){
+      if (e && e.name === "AbortError") return;
+    }
+  }
+  let filename = prompt("Nome del file da condividere:", defaultName);
+  if (filename === null) return;
+  filename = filename.trim() || defaultName;
+  if (!filename.toLowerCase().endsWith(".json")) filename += ".json";
+  const blob = new Blob([content], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  closeSheet("sheet-export-select");
+  toast(exportSelection.size + " voci esportate — condividi il file e comunica il PIN a parte");
+};
+$("btn-import").onclick = () => $("file-import").click();
+$("file-import").onchange = async (ev) => {
+  const file = ev.target.files[0]; if (!file) return;
+  try{
+    const data = JSON.parse(await file.text());
+    if (data.categories){
+      for (const c of data.categories){
+        if (!state.categories.some(existing => existing.id === c.id)){
+          await idbSet("categories", undefined, c);
+        }
+      }
+      await loadCategories();
+    }
+
+    // la chiave del vault ATTUALE spesso non coincide con quella del backup (salt diverso
+    // generato ad ogni nuova installazione, anche con lo stesso PIN): chiediamo il PIN
+    // usato al momento di QUEL backup per derivare la chiave corretta e decifrarlo
+    let sourceKey = state.vaultKey;
+    if (data.meta && data.meta.salt){
+      const backupPin = prompt("PIN che avevi impostato quando hai creato questo backup (per poterlo leggere):");
+      if (backupPin === null){ toast("Importazione annullata"); return; }
+      try{
+        const candidateKey = await deriveKey(backupPin.trim(), data.meta.salt);
+        const check = await decryptJSON(candidateKey, data.meta.checkIv, data.meta.checkCt);
+        if (check.v !== CHECK_PLAINTEXT) throw new Error("pin errato");
+        sourceKey = candidateKey;
+      }catch(e){ toast("PIN del backup errato: nessuna voce importata"); return; }
+    }
+
+    let count = 0;
+    for (const r of data.entries){
+      try{
+        const dcopy = await decryptJSON(sourceKey, r.iv, r.ct);
+        const { iv, ct } = await encryptJSON(state.vaultKey, dcopy); // ri-cifra con la chiave del vault attuale
+        await idbSet("entries", undefined, { id: r.id, iv, ct });
+        const idx = state.entries.findIndex(e => e.id === r.id);
+        if (idx >= 0) state.entries[idx] = { id: r.id, ...dcopy }; else state.entries.push({ id: r.id, ...dcopy });
+        count++;
+      }catch(e){ /* voce non decifrabile nemmeno col PIN del backup: salta */ }
+    }
+    renderCatChips(); renderList(); closeSheet("sheet-settings");
+    touchLastModified();
+    toast(count + " voci ripristinate dal backup");
+  }catch(e){ toast("File non valido"); }
+};
+
+/* ============ Importa da Excel ============ */
+$("btn-import-xlsx").onclick = () => $("file-import-xlsx").click();
+$("file-import-xlsx").onchange = async (ev) => {
+  const file = ev.target.files[0]; if (!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    let imported = 0;
+    for (const row of rows){
+      const service = String(row["Servizio"] || row["servizio"] || "").trim();
+      if (!service) continue;
+      const user = String(row["Utente"] || row["utente"] || "").trim();
+      const pass = String(row["Password"] || row["password"] || "").trim();
+      const link = String(row["Link"] || row["link"] || "").trim();
+      const notes = String(row["Note"] || row["note"] || "").trim();
+      const catName = String(row["Categoria"] || row["categoria"] || "").trim();
+      const categoryId = await resolveCategoryByName(catName);
+      const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+      const data = { service, user, pass, link, notes, history: [], categoryId };
+      const { iv, ct } = await encryptJSON(state.vaultKey, data);
+      await idbSet("entries", undefined, { id, iv, ct });
+      state.entries.push({ id, ...data });
+      imported++;
+    }
+    await loadCategories(); renderCatChips(); renderList(); closeSheet("sheet-settings");
+    touchLastModified(); toast(imported + " voci importate da Excel");
+  }catch(e){ toast("File Excel non valido"); }
+};
+async function resolveCategoryByName(name){
+  if (!name) return "personale";
+  const lower = name.toLowerCase();
+  if (lower === "personale") return "personale";
+  if (lower === "lavoro") return "lavoro";
+  let existing = state.categories.find(c => c.name.toLowerCase() === lower);
+  if (existing) return existing.id;
+  const id = "c_" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random());
+  await idbSet("categories", undefined, { id, name, parent: "personale", fixed: false });
+  state.categories.push({ id, name, parent: "personale", fixed: false });
+  return id;
+}
+
+/* ============ Sblocco biometrico (WebAuthn come gate, non come chiave di cifratura) ============ */
+function bioAvailableCheck(){
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+async function refreshBioUI(){
+  const meta = await idbGet("meta","auth");
+  const supported = bioAvailableCheck();
+  $("bio-support-note").textContent = supported
+    ? "Usa il blocco del telefono per sbloccare senza digitare il PIN"
+    : "Non supportato da questo browser";
+  $("toggle-bio").classList.toggle("on", !!(meta && meta.bioEnabled));
+  $("toggle-bio").style.opacity = supported ? "1" : ".4";
+  $("toggle-bio").onclick = supported ? onToggleBio : null;
+}
+async function onToggleBio(){
+  const meta = await idbGet("meta","auth");
+  if (meta.bioEnabled){
+    meta.bioEnabled = false; meta.bioCredId = null;
+    await idbSet("meta","auth", meta);
+    await refreshBioUI(); toast("Sblocco biometrico disattivato");
+    return;
+  }
+  try{
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: "Cassaforte Credenziali" },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "utente-locale", displayName: "Utente" },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000,
+      }
+    });
+    // Nota: il PIN resta l'unica chiave che cifra i dati. WebAuthn qui autentica
+    // l'utente (impronta/Face ID/PIN telefono) per evitare di ridigitare il PIN,
+    // ma la chiave di cifratura del vault deriva sempre dal PIN, mai da WebAuthn.
+    meta.bioEnabled = true; meta.bioCredId = b64(cred.rawId);
+    // Il PIN va comunque conservato in modo che lo sblocco biometrico possa derivare la chiave:
+    // lo cifriamo con una chiave locale dedicata, sbloccabile solo dopo l'assertion WebAuthn.
+    const wrapSalt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    const wrapKey = await crypto.subtle.importKey("raw", crypto.getRandomValues(new Uint8Array(32)), "AES-GCM", true, ["encrypt","decrypt"]);
+    const rawWrapKey = await crypto.subtle.exportKey("raw", wrapKey);
+    const { iv, ct } = await encryptJSON(wrapKey, { pin: state._lastPin || null });
+    meta.wrapKeyRaw = b64(rawWrapKey); meta.wrapIv = iv; meta.wrapCt = ct;
+    await idbSet("meta","auth", meta);
+    await refreshBioUI();
+    toast("Sblocco biometrico attivato");
+  }catch(e){
+    toast("Attivazione biometrica annullata o non riuscita");
+  }
+}
+async function tryBiometricUnlock(){
+  const meta = await idbGet("meta","auth");
+  if (!meta || !meta.bioEnabled || !meta.bioCredId) return false;
+  try{
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: unb64(meta.bioCredId), type: "public-key" }],
+        userVerification: "required", timeout: 60000,
+      }
+    });
+    if (!meta.wrapKeyRaw) return false;
+    const wrapKey = await crypto.subtle.importKey("raw", unb64(meta.wrapKeyRaw), "AES-GCM", false, ["decrypt"]);
+    const { pin } = await decryptJSON(wrapKey, meta.wrapIv, meta.wrapCt);
+    if (!pin) return false;
+    return await tryUnlock(pin);
+  }catch(e){ return false; }
+}
+$("bio-btn").onclick = async () => {
+  const ok = await tryBiometricUnlock();
+  if (!ok) toast("Sblocco biometrico non riuscito, usa il PIN");
+};
+
+// per poter offrire lo sblocco biometrico dobbiamo ricordare l'ultimo PIN digitato con successo
+const _origTryUnlock = tryUnlock;
+tryUnlock = async function(pin){ const ok = await _origTryUnlock(pin); if (ok) state._lastPin = pin; return ok; };
+
+/* ============ Boot ============ */
+async function boot(fromLock){
+  buildKeypad();
+  // chiediamo al telefono di NON cancellare mai automaticamente i dati di questa app per liberare spazio
+  if (navigator.storage && navigator.storage.persist){
+    try{ await navigator.storage.persist(); }catch(e){ /* non bloccante */ }
+  }
+  await ensureDefaultCategories();
+  const meta = await idbGet("meta","auth");
+  if (!meta){
+    state.mode = "setup"; state.pinBuffer=""; state.tempPin="";
+    $("lock-title").textContent = "CASSAFORTE";
+    $("lock-sub").textContent = "Crea PIN";
+    $("setup-note").style.display = "block";
+    $("setup-note").textContent = "I dati restano solo su questo telefono, cifrati con AES-256.";
+    $("bio-btn").style.display = "none";
+    renderDots(8,0); setLed("amber"); refreshSubmitLabel();
+  } else {
+    state.mode = "unlock"; state.pinBuffer="";
+    $("lock-title").textContent = "CASSAFORTE";
+    $("lock-sub").textContent = "Digita PIN";
+    $("setup-note").style.display = "none";
+    $("bio-btn").style.display = (meta.bioEnabled && bioAvailableCheck()) ? "flex" : "none";
+    renderDots(8,0); setLed("amber"); refreshSubmitLabel();
+  }
+}
+boot(false);
+
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+})();
+</script>
+</body>
+</html>
