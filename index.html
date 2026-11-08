@@ -260,7 +260,7 @@
     <button class="fab" id="btn-add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.11<span class="blink-cursor">_</span></div>
+    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.12<span class="blink-cursor">_</span></div>
   </section>
 
   <div class="overlay" id="overlay"></div>
@@ -586,6 +586,29 @@ $("btn-clear-pin").onclick = () => {
   renderDots(8, state.pinBuffer.length);
 };
 $("btn-submit-pin").onclick = () => tryConfirm();
+
+/* Tastiera fisica (PC): cifre 0-9 e tastierino numerico, Backspace = cancella una cifra, Esc = cancella tutto, Invio = conferma.
+   Attiva solo quando e' visibile la schermata del PIN e non si sta scrivendo in un campo di testo. */
+document.addEventListener("keydown", (ev) => {
+  if (getComputedStyle($("screen-lock")).display === "none") return;
+  if ($("overlay").classList.contains("open")) return;
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const t = ev.target && ev.target.tagName;
+  if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+  if (/^[0-9]$/.test(ev.key)){
+    ev.preventDefault();
+    if (!ev.repeat) onKey(ev.key);
+  } else if (ev.key === "Backspace"){
+    ev.preventDefault();
+    $("btn-clear-pin").onclick();
+  } else if (ev.key === "Escape"){
+    ev.preventDefault();
+    state.pinBuffer = ""; renderDots(8, 0);
+  } else if (ev.key === "Enter"){
+    ev.preventDefault();
+    if (!ev.repeat) tryConfirm();
+  }
+});
 
 async function tryConfirm(){
   const pin = state.pinBuffer;
@@ -1675,7 +1698,7 @@ async function boot(fromLock){
 boot(false);
 
 /* ============ Aggiornamento app: banner "nuova versione" ============ */
-const APP_VERSION = "2.11";   // deve coincidere con VERSION in sw.js
+const APP_VERSION = "2.12";   // deve coincidere con VERSION in sw.js
 let swReg = null, updateRequested = false;
 
 function askWorkerVersion(worker){
