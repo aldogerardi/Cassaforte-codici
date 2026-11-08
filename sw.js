@@ -1,4 +1,4 @@
-const CACHE = "cassaforte-v21";
+const CACHE = "cassaforte-v22";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {

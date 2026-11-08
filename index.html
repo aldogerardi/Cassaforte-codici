@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#04070A">
 <title>Cassaforte Credenziali</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -13,40 +13,64 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#FFFFFF; --panel:#F2F8FD; --panel2:#E4EFF9; --line:#3E7BE0;
-    --text:#16202B; --muted:#5C6B7A; --muted2:#8CA0B3;
-    --led-arm:#3DDC84; --led-amber:#FFB020; --led-danger:#FF5D5D;
+    --bg:#04070A; --panel:#0A120D; --panel2:#101C14; --line:#1F9D55;
+    --text:#C9FFDA; --muted:#5F9575; --muted2:#33513E;
+    --led-arm:#00FF6A; --led-amber:#FFC400; --led-danger:#FF2D55;
     --radius:16px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
   body{
     margin:0; color:var(--text);
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:'JetBrains Mono','IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
     overscroll-behavior:none; user-select:none;
     display:flex; justify-content:center;
     background-color:var(--bg);
     background-image:
-      radial-gradient(circle at 50% -10%, rgba(62,123,224,.08), transparent 55%),
-      repeating-linear-gradient(0deg, rgba(62,123,224,.05) 0, rgba(62,123,224,.05) 1px, transparent 1px, transparent 26px),
-      repeating-linear-gradient(90deg, rgba(62,123,224,.05) 0, rgba(62,123,224,.05) 1px, transparent 1px, transparent 26px);
+      radial-gradient(circle at 50% -10%, rgba(0,255,106,.10), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(0,255,106,.05) 0, rgba(0,255,106,.05) 1px, transparent 1px, transparent 26px),
+      repeating-linear-gradient(90deg, rgba(0,255,106,.05) 0, rgba(0,255,106,.05) 1px, transparent 1px, transparent 26px);
     background-attachment:fixed;
+    position:relative;
   }
-  #app{width:100%; max-width:480px; min-height:100vh; display:flex; flex-direction:column; position:relative;}
+  /* effetto CRT/scanline in stile terminale, non intercetta i tap */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(circle at 50% 30%, transparent 45%, rgba(0,0,0,.6) 100%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:repeating-linear-gradient(0deg, rgba(0,255,106,.035) 0px, rgba(0,255,106,.035) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+  #app{width:100%; max-width:480px; min-height:100vh; display:flex; flex-direction:column; position:relative; z-index:1;}
   .label{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; color:var(--muted2); text-transform:uppercase;}
   button{font-family:inherit; border:none; cursor:pointer; background:none; color:inherit;}
   input{font-family:inherit; color:inherit;}
+  @keyframes blinkCursor{50%{opacity:0;}}
+  .blink-cursor{animation:blinkCursor 1s steps(1) infinite;}
 
   /* ---------- Schermata Lock/Setup ---------- */
   #screen-lock{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
-  .lock-card{width:100%; max-width:300px; background:var(--panel); border:1px solid var(--line); border-radius:20px;
-             padding:24px 22px; display:flex; flex-direction:column; align-items:center; gap:18px; box-shadow:0 12px 34px rgba(0,0,0,.35);}
+  .lock-card{position:relative; width:100%; max-width:300px; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+             padding:36px 22px 24px; display:flex; flex-direction:column; align-items:center; gap:18px;
+             box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 24px rgba(0,255,106,.08), inset 0 0 40px rgba(0,255,106,.03);}
+  .lock-card::before{
+    content:""; position:absolute; top:14px; left:18px; width:9px; height:9px; border-radius:50%;
+    background:#ff5f57; box-shadow:16px 0 0 #febc2e, 32px 0 0 #28c840;
+  }
+  .lock-card::after{
+    content:"cassaforte.sh"; position:absolute; top:13px; right:18px; font-size:10px;
+    color:var(--muted2); letter-spacing:.04em;
+  }
   .led{display:none;}
-  .led.amber{background:var(--led-amber); box-shadow:0 0 14px 2px rgba(255,176,32,.55);}
-  .led.arm{background:var(--led-arm); box-shadow:0 0 16px 3px rgba(61,220,132,.6);}
-  .led.danger{background:var(--led-danger); box-shadow:0 0 16px 3px rgba(255,93,93,.6);}
+  .led.amber{background:var(--led-amber); box-shadow:0 0 14px 2px rgba(255,196,0,.55);}
+  .led.arm{background:var(--led-arm); box-shadow:0 0 16px 3px rgba(0,255,106,.6);}
+  .led.danger{background:var(--led-danger); box-shadow:0 0 16px 3px rgba(255,45,85,.6);}
   .lock-head{display:flex; flex-direction:column; align-items:center; gap:8px;}
-  .lock-title{display:none;}
+  .lock-title{display:block; font-size:14px; font-weight:700; letter-spacing:.14em; color:var(--led-arm);
+              text-shadow:0 0 8px rgba(0,255,106,.65), 0 0 2px rgba(0,255,106,.9);}
+  .lock-title::before{content:"> ";}
   .lock-sub{font-size:12px; color:var(--muted); text-align:center;}
   .dots{display:flex; gap:10px; height:14px; align-items:center;}
   .dot{width:10px; height:10px; border-radius:50%; border:2px solid var(--line); transition:.15s;}
@@ -56,11 +80,11 @@
   .keypad{display:grid; grid-template-columns:repeat(5,44px); gap:8px;}
   .key{width:44px; height:44px; border-radius:12px; background:var(--bg); border:1px solid var(--line);
        font-family:'JetBrains Mono',monospace; font-size:17px; font-weight:600; display:flex; align-items:center; justify-content:center;}
-  .key:active{background:var(--panel2);}
+  .key:active{background:var(--panel2); box-shadow:0 0 10px rgba(0,255,106,.35); color:var(--led-arm);}
   .keyrow-actions{display:flex; gap:8px; width:100%;}
   .key-action{flex:1; height:44px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;}
   .key-action.clear{background:var(--bg); border:1px solid var(--line); color:var(--muted);}
-  .key-action.login{background:var(--led-arm); color:#0B1410;}
+  .key-action.login{background:var(--led-arm); color:#041006;}
   .key-action.login:active{opacity:.85;}
   .biolink{font-size:12px; color:var(--led-arm); display:flex; align-items:center; gap:6px;}
   .setup-note{font-size:11px; color:var(--muted2); text-align:center; max-width:260px;}
@@ -90,7 +114,7 @@
   .crumb-sep{color:var(--muted2); flex-shrink:0;}
   .crumb-del{flex-shrink:0; padding:5px 8px; opacity:.7;}
   .chip{flex-shrink:0; padding:7px 14px; border-radius:20px; background:var(--panel); border:1px solid var(--line); font-size:13px; color:var(--muted); white-space:nowrap;}
-  .chip.active{background:var(--led-arm); color:#0B1410; border-color:var(--led-arm); font-weight:600;}
+  .chip.active{background:var(--led-arm); color:#041006; border-color:var(--led-arm); font-weight:700; text-shadow:none;}
   .item .tag{font-size:11px; color:var(--muted2); font-family:'IBM Plex Mono',monospace; margin-top:1px;}
   #list{flex:1; overflow-y:auto; padding:0 18px 120px;}
   .empty{color:var(--muted2); text-align:center; margin-top:60px; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:10px;}
@@ -100,12 +124,12 @@
   .item .service{font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .item .user{font-size:13px; color:var(--muted); font-family:'IBM Plex Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .item .chev{color:var(--muted2); font-size:15px; padding:8px 4px 8px 10px;}
-  .fab{position:fixed; right:20px; bottom:calc(34px + env(safe-area-inset-bottom, 0px)); width:56px; height:56px; border-radius:50%; background:var(--led-arm); color:#0B1410; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(61,220,132,.35); z-index:4;}
+  .fab{position:fixed; right:20px; bottom:calc(34px + env(safe-area-inset-bottom, 0px)); width:56px; height:56px; border-radius:50%; background:var(--led-arm); color:#041006; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,255,106,.4), 0 0 18px rgba(0,255,106,.35); z-index:4;}
   .credit-strip{position:fixed; left:0; right:0; bottom:0; z-index:3; text-align:center;
     padding:8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
-    background:linear-gradient(90deg, #3E7BE0, #3DDC84);
-    color:#fff; font-size:12px; font-weight:700; letter-spacing:.03em;
-    box-shadow:0 -4px 14px rgba(0,0,0,.15);}
+    background:linear-gradient(90deg, #0A3D1F, #00FF6A);
+    color:#04140A; font-size:11px; font-weight:700; letter-spacing:.03em;
+    box-shadow:0 -4px 14px rgba(0,0,0,.4);}
   .fab-menu{position:fixed; right:20px; bottom:calc(98px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:8px; opacity:0; pointer-events:none; transform:translateY(8px); transition:.18s; z-index:4;}
   .fab-menu.open{opacity:1; pointer-events:auto; transform:translateY(0);}
   .fab-menu button{background:var(--panel); border:1px solid var(--line); color:var(--text); padding:11px 16px; border-radius:12px; font-size:14px; white-space:nowrap; box-shadow:0 6px 16px rgba(0,0,0,.3); text-align:left;}
@@ -129,9 +153,9 @@
   .smallbtn{padding:0 12px; border-radius:10px; background:var(--bg); border:1px solid var(--line); font-size:13px; color:var(--muted);}
   .sheet-actions{display:flex; gap:10px; margin-top:18px;}
   .btn{flex:1; padding:13px; border-radius:12px; font-weight:600; font-size:14px; text-align:center;}
-  .btn-primary{background:var(--led-arm); color:#0B1410;}
+  .btn-primary{background:var(--led-arm); color:#041006; text-shadow:none;}
   .btn-ghost{background:var(--bg); border:1px solid var(--line); color:var(--text);}
-  .btn-danger{background:rgba(255,93,93,.12); color:var(--led-danger); border:1px solid rgba(255,93,93,.3);}
+  .btn-danger{background:rgba(255,45,85,.12); color:var(--led-danger); border:1px solid rgba(255,45,85,.3);}
 
   /* ---------- Settings sheet ---------- */
   .settings-row{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);}
@@ -150,7 +174,7 @@
   .toast.show{opacity:1; bottom:40px;}
   select{color:var(--text); accent-color:var(--led-arm);}
   select option{background:var(--panel); color:var(--text);}
-  ::selection{background:rgba(61,220,132,.3);}
+  ::selection{background:rgba(0,255,106,.3);}
 </style>
 </head>
 <body>
@@ -210,7 +234,7 @@
     <button class="fab" id="btn-add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <div class="credit-strip">Created da Claude AI per Aldo — v.2.07</div>
+    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.08<span class="blink-cursor">_</span></div>
   </section>
 
   <div class="overlay" id="overlay"></div>
@@ -288,6 +312,14 @@
       <input type="range" id="autolock-slider" min="1" max="25" step="1" value="3" style="width:100%; accent-color:var(--led-arm);">
       <div class="s">Utile mentre carichi tante voci di fila: alzalo per non dover rifare il login ogni volta</div>
     </div>
+    <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div style="display:flex; justify-content:space-between;">
+        <div class="t">Timer riautenticazione password</div>
+        <div class="t" id="reauth-value" style="color:var(--led-arm); font-weight:700;">1 min</div>
+      </div>
+      <input type="range" id="reauth-slider" min="0" max="300" step="15" value="60" style="width:100%; accent-color:var(--led-arm);">
+      <div class="s">Trascorso questo tempo dall'ultimo sblocco, per rivelare una password serve reinserire PIN o biometria. 0 = disattivato.</div>
+    </div>
     <div class="settings-row">
       <div><div class="t">Sblocco biometrico</div><div class="s" id="bio-support-note">Verifica supporto…</div></div>
       <div class="switch" id="toggle-bio"></div>
@@ -315,6 +347,26 @@
     <input type="file" id="file-import" accept="application/json" style="display:none;">
     <input type="file" id="file-import-xlsx" accept=".xlsx,.xls" style="display:none;">
     <button class="btn btn-ghost" id="btn-close-settings" style="width:100%; margin-top:16px;">Chiudi</button>
+  </div>
+
+  <!-- RIAUTENTICAZIONE PER VEDERE UNA PASSWORD -->
+  <div class="sheet" id="sheet-reauth" style="max-width:340px;">
+    <div class="sheet-handle"></div>
+    <h2>&gt; verifica identità</h2>
+    <div class="s" style="margin-bottom:14px;">Per vedere questa password reinserisci il PIN.</div>
+    <div class="field">
+      <input id="reauth-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN"
+             style="width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:20px; letter-spacing:.3em; text-align:center; outline:none;">
+    </div>
+    <div id="reauth-error" style="color:var(--led-danger); font-size:12px; text-align:center; min-height:16px; margin-bottom:6px;"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="btn-reauth-cancel">Annulla</button>
+      <button class="btn btn-primary" id="btn-reauth-confirm">Conferma</button>
+    </div>
+    <button class="biolink" id="reauth-bio-btn" style="display:none; margin:14px auto 0; justify-content:center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5Z"/><path d="M7 9v3a5 5 0 0 0 10 0V9M4 12v1a8 8 0 0 0 16 0v-1"/></svg>
+      Usa impronta / Face ID
+    </button>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -420,9 +472,11 @@ let state = {
   editingId: null,
   autoLockTimer: null,
   bioCredId: null,
+  lastUnlockAt: null,   // timestamp dell'ultimo sblocco/riautenticazione, per il timer di rivelazione password
 };
 
 let AUTO_LOCK_MINUTES = 3;
+let REAUTH_SECONDS = 60;
 function resetAutoLock(){
   clearTimeout(state.autoLockTimer);
   state.lastActivity = Date.now();
@@ -556,6 +610,7 @@ async function createVault(pin){
   const { iv, ct } = await encryptJSON(key, { v: CHECK_PLAINTEXT });
   await idbSet("meta","auth",{ salt, checkIv: iv, checkCt: ct, bioEnabled:false });
   state.vaultKey = key; state.entries = [];
+  state.lastUnlockAt = Date.now();
   toast("Cassaforte creata");
   enterVault();
 }
@@ -566,6 +621,7 @@ async function tryUnlock(pin){
     const check = await decryptJSON(key, meta.checkIv, meta.checkCt);
     if (check.v !== CHECK_PLAINTEXT) return false;
     state.vaultKey = key;
+    state.lastUnlockAt = Date.now();
     await loadEntries();
     setLed("arm");
     setTimeout(enterVault, 220);
@@ -743,6 +799,7 @@ async function enterVault(){
   renderCatChips();
   const meta = await idbGet("meta","auth");
   AUTO_LOCK_MINUTES = (meta && meta.autoLockMinutes) ? meta.autoLockMinutes : 3;
+  REAUTH_SECONDS = (meta && meta.reauthSeconds != null) ? meta.reauthSeconds : 60;
   refreshTopInfo(meta);
   $("screen-lock").style.display = "none";
   $("screen-vault").style.display = "flex";
@@ -778,12 +835,71 @@ function lockVault(){
   state.vaultKey = null;
   state.entries = [];
   state.pinBuffer = "";
+  state.lastUnlockAt = null;
   clearTimeout(state.autoLockTimer);
   $("screen-vault").style.display = "none";
   $("screen-lock").style.display = "flex";
   closeSheet("sheet-edit"); closeSheet("sheet-settings"); closeSheet("sheet-newcat"); closeSheet("sheet-export-select");
   boot(true);
 }
+
+/* ============ Timer di riautenticazione per vedere una password ============ */
+function needsReauth(){
+  return REAUTH_SECONDS > 0 && state.lastUnlockAt && (Date.now() - state.lastUnlockAt) > REAUTH_SECONDS * 1000;
+}
+async function verifyPinOnly(pin){
+  const meta = await idbGet("meta","auth");
+  try{
+    const key = await deriveKey(pin, meta.salt);
+    const check = await decryptJSON(key, meta.checkIv, meta.checkCt);
+    return check.v === CHECK_PLAINTEXT;
+  }catch(e){ return false; }
+}
+async function verifyBiometricOnly(){
+  const meta = await idbGet("meta","auth");
+  if (!meta || !meta.bioEnabled || !meta.bioCredId) return false;
+  try{
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: unb64(meta.bioCredId), type: "public-key" }],
+        userVerification: "required", timeout: 60000,
+      }
+    });
+    return true;
+  }catch(e){ return false; }
+}
+let reauthResolver = null;
+async function openReauthModal(){
+  const meta = await idbGet("meta","auth");
+  $("reauth-pin").value = "";
+  $("reauth-error").textContent = "";
+  $("reauth-bio-btn").style.display = (meta && meta.bioEnabled && bioAvailableCheck()) ? "flex" : "none";
+  openSheet("sheet-reauth");
+  setTimeout(() => $("reauth-pin").focus(), 250);
+  return new Promise((resolve) => { reauthResolver = resolve; });
+}
+function closeReauthModal(result){
+  closeSheet("sheet-reauth");
+  if (reauthResolver){ const r = reauthResolver; reauthResolver = null; r(result); }
+}
+async function ensureReauth(){
+  if (!needsReauth()) return true;
+  return await openReauthModal();
+}
+$("btn-reauth-cancel").onclick = () => closeReauthModal(false);
+$("btn-reauth-confirm").onclick = async () => {
+  const pin = $("reauth-pin").value;
+  const ok = await verifyPinOnly(pin);
+  if (ok){ state.lastUnlockAt = Date.now(); closeReauthModal(true); }
+  else{ $("reauth-error").textContent = "PIN errato"; $("reauth-pin").value=""; $("reauth-pin").focus(); }
+};
+$("reauth-pin").addEventListener("keydown", (ev) => { if (ev.key === "Enter") $("btn-reauth-confirm").click(); });
+$("reauth-bio-btn").onclick = async () => {
+  const ok = await verifyBiometricOnly();
+  if (ok){ state.lastUnlockAt = Date.now(); closeReauthModal(true); }
+  else{ $("reauth-error").textContent = "Verifica biometrica non riuscita"; }
+};
 
 /* ============ Lista / ricerca ============ */
 function renderList(){
@@ -831,7 +947,13 @@ $("search-input").addEventListener("input", renderList);
 /* ============ Editor voce ============ */
 function openSheet(id){ $("overlay").classList.add("open"); $(id).classList.add("open"); }
 function closeSheet(id){ $(id).classList.remove("open"); if(![...document.querySelectorAll(".sheet")].some(s=>s.classList.contains("open"))) $("overlay").classList.remove("open"); }
-$("overlay").onclick = () => { closeSheet("sheet-edit"); closeSheet("sheet-settings"); closeSheet("sheet-newcat"); closeSheet("sheet-export-select"); };
+$("overlay").onclick = () => {
+  closeSheet("sheet-edit"); closeSheet("sheet-settings"); closeSheet("sheet-newcat"); closeSheet("sheet-export-select");
+  if ($("sheet-reauth").classList.contains("open")){
+    closeSheet("sheet-reauth");
+    if (reauthResolver){ const r = reauthResolver; reauthResolver = null; r(false); }
+  }
+};
 
 function openEditor(id){
   state.editingId = id || null;
@@ -861,15 +983,28 @@ function renderHistory(hist){
     row.innerHTML = `<span>${"•".repeat(Math.min(pw.length,14))}</span>`;
     const btn = document.createElement("button");
     btn.textContent = "mostra";
-    btn.onclick = () => { const s = row.querySelector("span"); const showing = s.dataset.shown === "1";
+    btn.onclick = async () => {
+      const s = row.querySelector("span"); const showing = s.dataset.shown === "1";
+      if (!showing){
+        const ok = await ensureReauth();
+        if (!ok) return;
+      }
       s.textContent = showing ? "•".repeat(Math.min(pw.length,14)) : pw; s.dataset.shown = showing ? "0" : "1";
-      btn.textContent = showing ? "mostra" : "nascondi"; };
+      btn.textContent = showing ? "mostra" : "nascondi";
+    };
     row.appendChild(btn);
     list.appendChild(row);
   });
 }
 $("btn-cancel-edit").onclick = () => closeSheet("sheet-edit");
-$("btn-showpass").onclick = () => { const f=$("f-pass"); f.type = f.type === "password" ? "text" : "password"; };
+$("btn-showpass").onclick = async () => {
+  const f = $("f-pass");
+  if (f.type === "password"){
+    const ok = await ensureReauth();
+    if (!ok) return;
+  }
+  f.type = f.type === "password" ? "text" : "password";
+};
 $("btn-genpass").onclick = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
   const arr = crypto.getRandomValues(new Uint32Array(18));
@@ -941,11 +1076,20 @@ $("btn-recheck-persist").onclick = async () => {
   await refreshPersistStatus();
 };
 
+function formatReauth(sec){
+  sec = parseInt(sec, 10);
+  if (sec === 0) return "Disattivato";
+  if (sec < 60) return sec + " s";
+  const m = Math.floor(sec/60), s = sec % 60;
+  return s === 0 ? (m + " min") : (m + " min " + s + " s");
+}
 $("btn-settings").onclick = async () => {
   await refreshBioUI();
   await refreshPersistStatus();
   $("autolock-slider").value = AUTO_LOCK_MINUTES;
   $("autolock-value").textContent = AUTO_LOCK_MINUTES + " min";
+  $("reauth-slider").value = REAUTH_SECONDS;
+  $("reauth-value").textContent = formatReauth(REAUTH_SECONDS);
   openSheet("sheet-settings");
 };
 $("autolock-slider").oninput = () => {
@@ -959,6 +1103,17 @@ $("autolock-slider").onchange = async () => {
   await idbSet("meta","auth", meta);
   resetAutoLock();
   toast("Blocco automatico impostato a " + minutes + " min");
+};
+$("reauth-slider").oninput = () => {
+  $("reauth-value").textContent = formatReauth($("reauth-slider").value);
+};
+$("reauth-slider").onchange = async () => {
+  const sec = parseInt($("reauth-slider").value, 10);
+  REAUTH_SECONDS = sec;
+  const meta = await idbGet("meta","auth");
+  meta.reauthSeconds = sec;
+  await idbSet("meta","auth", meta);
+  toast("Timer riautenticazione: " + formatReauth(sec));
 };
 $("btn-close-settings").onclick = () => closeSheet("sheet-settings");
 
@@ -986,6 +1141,7 @@ async function applyPinChange(newPin){
   meta.bioEnabled = false; meta.bioCredId = null;
   await idbSet("meta","auth", meta);
   state.vaultKey = newKey; state._oldKey = null;
+  state.lastUnlockAt = Date.now();
   await loadEntries();
   toast("PIN aggiornato");
   $("lock-title").textContent = "CASSAFORTE";
