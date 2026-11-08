@@ -169,6 +169,13 @@
   .switch.on{background:var(--led-arm);}
   .switch::after{content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s;}
   .switch.on::after{transform:translateX(18px);}
+  /* ---------- Banner aggiornamento ---------- */
+  #update-banner{display:none; align-items:center; gap:10px; padding:9px 12px; padding-top:calc(9px + env(safe-area-inset-top, 0px));
+    background:var(--panel2); border-bottom:1px solid var(--led-arm); box-shadow:0 0 16px rgba(0,255,106,.25); font-size:12px; position:relative; z-index:6;}
+  #update-banner.show{display:flex;}
+  #update-banner .ub-text{flex:1; color:var(--led-arm); text-shadow:0 0 6px rgba(0,255,106,.5);}
+  #update-banner .ub-btn{background:var(--led-arm); color:#041006; font-weight:700; font-size:12px; padding:7px 12px; border-radius:8px; letter-spacing:.04em;}
+  #update-banner .ub-x{color:var(--muted); font-size:18px; line-height:1; padding:2px 6px;}
   .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line);
          padding:10px 18px; border-radius:20px; font-size:13px; z-index:20; opacity:0; transition:.25s; pointer-events:none;}
   .toast.show{opacity:1; bottom:40px;}
@@ -179,6 +186,13 @@
 </head>
 <body>
 <div id="app">
+
+  <!-- BANNER NUOVA VERSIONE -->
+  <div id="update-banner" role="status">
+    <span class="ub-text" id="ub-text">&gt; nuova versione disponibile</span>
+    <button class="ub-btn" id="ub-update">AGGIORNA</button>
+    <button class="ub-x" id="ub-close" aria-label="Chiudi">×</button>
+  </div>
 
   <!-- LOCK / SETUP -->
   <section id="screen-lock">
@@ -234,7 +248,7 @@
     <button class="fab" id="btn-add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.08<span class="blink-cursor">_</span></div>
+    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.09<span class="blink-cursor">_</span></div>
   </section>
 
   <div class="overlay" id="overlay"></div>
@@ -1494,8 +1508,49 @@ async function boot(fromLock){
 }
 boot(false);
 
+/* ============ Aggiornamento app: banner "nuova versione" ============ */
+const APP_VERSION = "2.09";   // deve coincidere con VERSION in sw.js
+let swReg = null, updateRequested = false;
+
+function askWorkerVersion(worker){
+  return new Promise((resolve) => {
+    const ch = new MessageChannel();
+    const t = setTimeout(() => resolve(null), 1500);
+    ch.port1.onmessage = (e) => { clearTimeout(t); resolve(e.data && e.data.version ? e.data.version : null); };
+    try{ worker.postMessage({ type:"GET_VERSION" }, [ch.port2]); }catch(e){ clearTimeout(t); resolve(null); }
+  });
+}
+async function checkWaitingUpdate(reg){
+  if (!reg || !reg.waiting || !navigator.serviceWorker.controller) return;
+  const v = await askWorkerVersion(reg.waiting);
+  if (v && v === APP_VERSION) return;   // stessa versione che sto già mostrando: niente banner
+  $("ub-text").textContent = v ? ("> nuova versione v." + v + " disponibile") : "> nuova versione disponibile";
+  $("update-banner").classList.add("show");
+}
+$("ub-close").onclick = () => $("update-banner").classList.remove("show");
+$("ub-update").onclick = () => {
+  updateRequested = true;
+  $("ub-update").textContent = "…";
+  if (swReg && swReg.waiting) swReg.waiting.postMessage({ type:"SKIP_WAITING" });
+  setTimeout(() => location.reload(), 4000);   // rete di sicurezza se controllerchange non arriva
+};
+
 if ("serviceWorker" in navigator){
-  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (updateRequested) location.reload(); });
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      swReg = reg;
+      checkWaitingUpdate(reg);
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => { if (nw.state === "installed") checkWaitingUpdate(reg); });
+      });
+    }).catch(()=>{});
+  });
+  const checkForUpdate = () => { if (swReg) swReg.update().then(() => checkWaitingUpdate(swReg)).catch(()=>{}); };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkForUpdate(); });
+  setInterval(checkForUpdate, 30 * 60 * 1000);
 }
 })();
 </script>
