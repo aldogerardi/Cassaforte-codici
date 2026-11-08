@@ -176,6 +176,18 @@
   #update-banner .ub-text{flex:1; color:var(--led-arm); text-shadow:0 0 6px rgba(0,255,106,.5);}
   #update-banner .ub-btn{background:var(--led-arm); color:#041006; font-weight:700; font-size:12px; padding:7px 12px; border-radius:8px; letter-spacing:.04em;}
   #update-banner .ub-x{color:var(--muted); font-size:18px; line-height:1; padding:2px 6px;}
+  /* ---------- Riquadro ultime usate ---------- */
+  .recent-box{background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:14px; overflow:hidden;
+              box-shadow:0 0 14px rgba(0,255,106,.08);}
+  .recent-head{padding:8px 12px; font-size:11px; letter-spacing:.12em; color:var(--led-arm); border-bottom:1px solid var(--line);
+               text-shadow:0 0 6px rgba(0,255,106,.45);}
+  .recent-row{display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid rgba(31,157,85,.25); cursor:pointer;}
+  .recent-row:last-child{border-bottom:none;}
+  .recent-row:active{background:var(--panel2);}
+  .recent-row .rdot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
+  .recent-row .rs{font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42%; flex-shrink:0;}
+  .recent-row .ru{flex:1; min-width:0; font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .recent-row .rt{font-size:11px; color:var(--muted2); flex-shrink:0;}
   .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line);
          padding:10px 18px; border-radius:20px; font-size:13px; z-index:20; opacity:0; transition:.25s; pointer-events:none;}
   .toast.show{opacity:1; bottom:40px;}
@@ -248,7 +260,7 @@
     <button class="fab" id="btn-add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.09<span class="blink-cursor">_</span></div>
+    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.10<span class="blink-cursor">_</span></div>
   </section>
 
   <div class="overlay" id="overlay"></div>
@@ -486,6 +498,7 @@ let state = {
   editingId: null,
   autoLockTimer: null,
   bioCredId: null,
+  recent: [],           // [{id, at}] ultime voci usate (max 5), solo identificativo e ora
   lastUnlockAt: null,   // timestamp dell'ultimo sblocco/riautenticazione, per il timer di rivelazione password
 };
 
@@ -812,6 +825,8 @@ async function enterVault(){
   await loadCategories();
   renderCatChips();
   const meta = await idbGet("meta","auth");
+  const rec = await idbGet("meta","recent");
+  state.recent = (rec && Array.isArray(rec.items)) ? rec.items.slice(0,5) : [];
   AUTO_LOCK_MINUTES = (meta && meta.autoLockMinutes) ? meta.autoLockMinutes : 3;
   REAUTH_SECONDS = (meta && meta.reauthSeconds != null) ? meta.reauthSeconds : 60;
   refreshTopInfo(meta);
@@ -850,6 +865,7 @@ function lockVault(){
   state.entries = [];
   state.pinBuffer = "";
   state.lastUnlockAt = null;
+  state.recent = [];
   clearTimeout(state.autoLockTimer);
   $("screen-vault").style.display = "none";
   $("screen-lock").style.display = "flex";
@@ -915,6 +931,57 @@ $("reauth-bio-btn").onclick = async () => {
   else{ $("reauth-error").textContent = "Verifica biometrica non riuscita"; }
 };
 
+/* ============ Ultime voci usate (riquadro in Home) ============ */
+const RECENT_MAX = 5;
+async function persistRecent(){ try{ await idbSet("meta","recent",{ items: state.recent }); }catch(e){} }
+function recordRecent(id){
+  if (!id) return;
+  state.recent = [{ id, at: Date.now() }].concat(state.recent.filter(r => r.id !== id)).slice(0, RECENT_MAX);
+  persistRecent();
+  renderList();
+}
+function forgetRecent(id){
+  const before = state.recent.length;
+  state.recent = state.recent.filter(r => r.id !== id);
+  if (state.recent.length !== before) persistRecent();
+}
+function timeAgo(ts){
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return "adesso";
+  if (m < 60) return m + " min fa";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + " h fa";
+  const g = Math.floor(h / 24);
+  return g === 1 ? "ieri" : g + " g fa";
+}
+function buildRecentBox(){
+  const rows = state.recent
+    .map(r => ({ r, e: state.entries.find(x => x.id === r.id) }))
+    .filter(x => x.e)
+    .slice(0, RECENT_MAX);
+  if (rows.length === 0) return null;
+  const box = document.createElement("div");
+  box.className = "recent-box";
+  const head = document.createElement("div");
+  head.className = "recent-head";
+  head.textContent = "> ultime usate";
+  box.appendChild(head);
+  rows.forEach(({ r, e }) => {
+    const cat = catById(e.categoryId);
+    const color = (cat && cat.color) || "#3E7BE0";
+    const row = document.createElement("div");
+    row.className = "recent-row";
+    row.innerHTML = '<span class="rdot"></span><span class="rs"></span><span class="ru"></span><span class="rt"></span>';
+    row.querySelector(".rdot").style.background = color;
+    row.querySelector(".rs").textContent = e.service;
+    row.querySelector(".ru").textContent = e.user || "—";
+    row.querySelector(".rt").textContent = timeAgo(r.at);
+    row.onclick = () => openEditor(e.id);
+    box.appendChild(row);
+  });
+  return box;
+}
+
 /* ============ Lista / ricerca ============ */
 function renderList(){
   const q = $("search-input").value.trim().toLowerCase();
@@ -932,6 +999,7 @@ function renderList(){
     </div>`;
     return;
   }
+  if (!q && state.activeFilter === "all"){ const rb = buildRecentBox(); if (rb) list.appendChild(rb); }
   filtered.forEach(e => {
     const el = document.createElement("div");
     el.className = "item";
@@ -971,6 +1039,7 @@ $("overlay").onclick = () => {
 
 function openEditor(id){
   state.editingId = id || null;
+  if (id) recordRecent(id);
   const e = id ? state.entries.find(x => x.id === id) : { service:"", user:"", pass:"", link:"", notes:"", history:[], categoryId: (state.activeFilter !== "all" ? state.activeFilter : "personale") };
   $("edit-title").textContent = id ? "Modifica voce" : "Nuova voce";
   $("f-service").value = e.service; $("f-user").value = e.user || "";
@@ -1046,6 +1115,7 @@ $("btn-save-edit").onclick = async () => {
 $("btn-delete-edit").onclick = async () => {
   if (!state.editingId) return;
   await idbDel("entries", state.editingId);
+  forgetRecent(state.editingId);
   state.entries = state.entries.filter(e => e.id !== state.editingId);
   closeSheet("sheet-edit"); renderCatChips(); renderList(); touchLastModified(); toast("Voce eliminata");
 };
@@ -1509,7 +1579,7 @@ async function boot(fromLock){
 boot(false);
 
 /* ============ Aggiornamento app: banner "nuova versione" ============ */
-const APP_VERSION = "2.09";   // deve coincidere con VERSION in sw.js
+const APP_VERSION = "2.10";   // deve coincidere con VERSION in sw.js
 let swReg = null, updateRequested = false;
 
 function askWorkerVersion(worker){
