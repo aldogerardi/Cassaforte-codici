@@ -107,6 +107,13 @@
   .cat-chips::-webkit-scrollbar{display:none;}
   .cat-breadcrumb{display:flex; align-items:center; gap:4px; padding:0 18px 8px; overflow-x:auto; font-size:12px; color:var(--muted);}
   .cat-breadcrumb::-webkit-scrollbar{display:none;}
+  /* PC con mouse: barra di scorrimento sottile visibile + cursore "mano" (rotellina e trascinamento gestiti in JS) */
+  @media (hover:hover) and (pointer:fine){
+    .cat-chips, .cat-breadcrumb{scrollbar-width:thin; scrollbar-color:var(--line) transparent; cursor:grab;}
+    .cat-chips::-webkit-scrollbar, .cat-breadcrumb::-webkit-scrollbar{display:block; height:6px;}
+    .cat-chips::-webkit-scrollbar-thumb, .cat-breadcrumb::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px;}
+    .cat-chips.dragging, .cat-breadcrumb.dragging{cursor:grabbing;}
+  }
   .crumb{flex-shrink:0; padding:5px 10px; border-radius:8px; white-space:nowrap;}
   .crumb.active{color:var(--led-arm); font-weight:600;}
   .crumb.root{font-size:17px; font-weight:700; padding:7px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; color:var(--text);}
@@ -260,7 +267,7 @@
     <button class="fab" id="btn-add">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.12<span class="blink-cursor">_</span></div>
+    <div class="credit-strip">&gt; created by Claude AI for Aldo — v.2.13<span class="blink-cursor">_</span></div>
   </section>
 
   <div class="overlay" id="overlay"></div>
@@ -1261,6 +1268,33 @@ $("btn-duplicate-edit").onclick = async () => {
 /* ============ Lock manuale / settings ============ */
 $("btn-lock").onclick = lockVault;
 $("home-btn").onclick = () => { state.rootExpanded = true; state.browsePath = []; state.activeFilter = "all"; renderCatChips(); renderList(); };
+
+/* Scorrimento orizzontale con il mouse (PC): rotellina e trascinamento, come il tocco sul telefono */
+function enableDragScroll(el){
+  let down = false, moved = false, startX = 0, startLeft = 0;
+  el.addEventListener("wheel", (e) => {
+    if (el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ el.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive:false });
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft;
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!down) return;
+    const dx = e.clientX - startX;
+    if (!moved && Math.abs(dx) > 5){ moved = true; el.classList.add("dragging"); }
+    if (moved) el.scrollLeft = startLeft - dx;
+  });
+  const stop = (reset) => { down = false; el.classList.remove("dragging"); if (reset) moved = false; };
+  el.addEventListener("pointerup", () => stop(false));
+  el.addEventListener("pointerleave", () => stop(true));
+  el.addEventListener("pointercancel", () => stop(true));
+  // dopo un trascinamento il rilascio non deve "cliccare" il sottogruppo sotto il mouse
+  el.addEventListener("click", (e) => { if (moved){ e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+}
+enableDragScroll($("cat-chips"));
+enableDragScroll($("cat-breadcrumb"));
 async function refreshPersistStatus(){
   const el = $("persist-status");
   if (!(navigator.storage && navigator.storage.persisted)){
@@ -1698,7 +1732,7 @@ async function boot(fromLock){
 boot(false);
 
 /* ============ Aggiornamento app: banner "nuova versione" ============ */
-const APP_VERSION = "2.12";   // deve coincidere con VERSION in sw.js
+const APP_VERSION = "2.13";   // deve coincidere con VERSION in sw.js
 let swReg = null, updateRequested = false;
 
 function askWorkerVersion(worker){

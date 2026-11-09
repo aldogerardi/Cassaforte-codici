@@ -1,5 +1,5 @@
 // ==== VERSIONE: cambiala a ogni pubblicazione (uguale a APP_VERSION in index.html) ====
-const VERSION = "2.12";
+const VERSION = "2.13";
 // ======================================================================================
 const CACHE = "cassaforte-v" + VERSION;
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"];
